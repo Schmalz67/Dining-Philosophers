@@ -1,0 +1,75 @@
+//
+//  main.c
+//  Dining-Philosophers
+//
+//  Created by Drew Schmalz on 10/25/21.
+//
+
+#include <stdio.h>
+#include <semaphore.h>
+#include <pthread.h>
+#include <unistd.h>
+
+#define N 5
+#define THINKING 2
+#define HUNGRY 1
+#define EATING 0
+#define LEFT (philonum + 4)%N
+#define RIGHT (philonum + 1)%N
+
+int currentState[N];
+int philosopher[N] = {0, 1, 2, 3, 4};
+
+sem_t mutex;
+sem_t S[N];
+void test(int philonum){
+    if(currentState[philonum] == HUNGRY && currentState[LEFT] != EATING && currentState[RIGHT] != EATING) {
+        currentState[philonum] = EATING;
+        sleep(2);
+        printf("Philosopher %d is eating. ", philonum + 1);
+        sem_post(&S[philonum]);
+    }
+}
+void take_fork(int philonum){
+    sem_wait(&mutex);
+    currentState[philonum] = HUNGRY;
+    printf("Philosopher %d is hungry. ", philonum + 1);
+    test(philonum);
+    sem_post(&mutex);
+    sem_wait(&S[philonum]);
+    sleep(2);
+}
+
+void put_fork(int philonum) {
+    sem_wait(&mutex);
+    currentState[philonum] = THINKING;
+    printf("Philosopher %d is thinking. ", philonum + 1);
+    test(LEFT);
+    test(RIGHT);
+    sem_post(&mutex);
+}
+
+void* philos(void* num){
+    while(1){
+        int* a = num;
+        sleep(1);
+        take_fork(*a);
+        sleep(0);
+        put_fork(*a);
+    }
+
+}
+
+int main(int argc, const char * argv[]) {
+    int a;
+    pthread_t thread_id[N];
+    sem_init(&mutex, 0, 1);
+    for(a = 0; a < N; a++)
+        sem_init(&S[a], 0, 0);
+    for(a = 0; a < N; a++){
+        pthread_create(&thread_id[a], NULL, philos, &philosopher[a]);
+    }
+    for(a = 0; a < N; a++)
+        pthread_join(thread_id[a], NULL);
+    
+}
